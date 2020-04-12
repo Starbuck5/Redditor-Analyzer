@@ -80,6 +80,9 @@ class Info:
                 pic_type = extension
                 break
 
+        if not os.path.isdir(pgx.handle_path("data/temp")):
+            os.mkdir(pgx.handle_path("data/temp"))
+
         with open(pgx.handle_path(f"data/temp/profile{pic_type}"), "wb") as handle:
             response = requests.get(pic_url, stream=True)
 
