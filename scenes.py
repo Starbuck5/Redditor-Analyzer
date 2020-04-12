@@ -101,39 +101,49 @@ class DisplayInfo(Scene):
             pgx.Location([50, 50, 128, 128]), pygame.Surface((128, 128))
         )
         self.date = pgx.ui.TextBox(
-            pgx.Location([50, 200]), pgx.Text("Account Created: ...", 20, color=(40,40,40))
+            pgx.Location([50, 200]),
+            pgx.Text("Account Created: ...", 20, color=(40, 40, 40)),
         )
         self.age = pgx.ui.TextBox(
-            pgx.Location([50, 230]), pgx.Text("Account Age: ...", 20, color=(40,40,40))
+            pgx.Location([50, 230]),
+            pgx.Text("Account Age: ...", 20, color=(40, 40, 40)),
         )
         self.last_activity = pgx.ui.TextBox(
-            pgx.Location([50, 260]), pgx.Text("Last Active: ...", 20, color=(40,40,40))
+            pgx.Location([50, 260]),
+            pgx.Text("Last Active: ...", 20, color=(40, 40, 40)),
         )
         self.karma = pgx.ui.TextBox(
-            pgx.Location([50, 290]), pgx.Text("Account Karma: ...", 20, color=(40,40,40))
+            pgx.Location([50, 290]),
+            pgx.Text("Account Karma: ...", 20, color=(40, 40, 40)),
         )
         self.section = pgx.ui.TextBox(
             pgx.Location([50, 320]),
             pgx.Text(
-                f"Loading analysis of u/{references.redditor.name}'s activity", 20, color=(40,40,40)
+                f"Loading analysis of u/{references.redditor.name}'s activity",
+                20,
+                color=(40, 40, 40),
             ),
         )
         self.posts_comments = pgx.ui.TextBox(
-            pgx.Location([50, 350]), pgx.Text("Post: Comment ratio", 20, color=(40,40,40))
+            pgx.Location([50, 350]),
+            pgx.Text("Post: Comment ratio", 20, color=(40, 40, 40)),
         )
         self.subs_frequented = pgx.ui.TextBox(
-            pgx.Location([50, 380]), pgx.Text("Their frequented subreddits:", 20, color=(40,40,40))
+            pgx.Location([50, 380]),
+            pgx.Text("Their frequented subreddits:", 20, color=(40, 40, 40)),
         )
         self.subs_obscure = pgx.ui.TextBox(
             pgx.Location([50, 410]),
-            pgx.Text("Their most obscure subreddit activity:", 20, color=(40,40,40)),
+            pgx.Text("Their most obscure subreddit activity:", 20, color=(40, 40, 40)),
         )
         self.subs_popular = pgx.ui.TextBox(
             pgx.Location([50, 440]),
-            pgx.Text("Their most popular subreddit activity:", 20, color=(40,40,40)),
+            pgx.Text("Their most popular subreddit activity:", 20, color=(40, 40, 40)),
         )
 
-        self.entry_loading = pgx.ui.TextBox(pgx.Location(["right-10", "bottom-30"], "right"), pgx.Text("", 20))
+        self.entry_loading = pgx.ui.TextBox(
+            pgx.Location(["right-10", "bottom-30"], "right"), pgx.Text("", 20)
+        )
 
         self.panel = pgx.ui.Panel(pgx.Location())
         self.panel.add(
@@ -147,7 +157,7 @@ class DisplayInfo(Scene):
             self.subs_frequented,
             self.subs_obscure,
             self.subs_popular,
-            self.entry_loading
+            self.entry_loading,
         )
 
         self.karma_displayed = False
@@ -207,8 +217,8 @@ class DisplayInfo(Scene):
                 try:
                     num_events = len(self.info.entries)
                 except:
-                    num_events = 0   
-                self.entry_loading.text.text = f"Processing Events: {num_events}"                
+                    num_events = 0
+                self.entry_loading.text.text = f"Processing Events: {num_events}"
 
         self.panel.display()
 
@@ -234,17 +244,17 @@ class DisplayInfo(Scene):
         self.date.text.text = "Account Created: " + self.info.created_date.strftime(
             f"%B {self.info.created_date.day}, %Y"
         )
-        self.date.text.color = (0,0,0)
+        self.date.text.color = (0, 0, 0)
 
         str_time = self._format_dates(self.info.age)
         self.age.text.text = f"Account Age: {str_time} old"
-        self.age.text.color = (0,0,0)
+        self.age.text.color = (0, 0, 0)
 
     def _display_account_last_active(self):
         last_activity = self.info.last_activity
         if last_activity["time"] == "never":
             self.last_activity.text.text = f"Last Active: Never"
-            self.last_activity.text.color = (0,0,0)
+            self.last_activity.text.color = (0, 0, 0)
         else:
             str_time = self._format_dates(last_activity["time"])
             str_time = "today" if str_time == "" else str_time + " ago"
@@ -259,7 +269,7 @@ class DisplayInfo(Scene):
             self.last_activity.text.text = (
                 f"Last Active: {str_time}, with a {act_type} in r/{act_sub}"
             )
-            self.last_activity.text.color = (0,0,0)
+            self.last_activity.text.color = (0, 0, 0)
 
     def _format_nums(self, num):
         # setting start number : (suffix, rounding, divisor)
@@ -294,18 +304,18 @@ class DisplayInfo(Scene):
         self.karma.text.text = (
             f"Account Karma: {total} -- {link} from posts and {comment} from comments"
         )
-        self.karma.text.color = (0,0,0)
+        self.karma.text.color = (0, 0, 0)
 
     def _display_account_analysis(self):
         self.section.text.text = (
             f"Over the last 250 actions, u/{references.redditor.name}:"
         )
-        self.section.text.color = (0,0,0)
+        self.section.text.color = (0, 0, 0)
 
         posts = self.info.num_posts
         comments = self.info.num_comments
         self.posts_comments.text.text = f"Has posted {posts} time{'s' if posts != 1 else ''}, and commented {comments} time{'s' if comments != 1 else ''}"
-        self.posts_comments.text.color = (0,0,0)
+        self.posts_comments.text.color = (0, 0, 0)
 
         activity = self.info.subreddit_activity
         freqsubs = "Their frequented subreddits:"
@@ -316,7 +326,7 @@ class DisplayInfo(Scene):
                 sub, num = activity.pop()
                 freqsubs += f" r/{sub.display_name} {num} time{'s' if num > 1 else ''}"
         self.subs_frequented.text.text = freqsubs
-        self.subs_frequented.text.color = (0,0,0)
+        self.subs_frequented.text.color = (0, 0, 0)
 
         activity = self.info.subreddit_size
         obscure = " None"
@@ -330,6 +340,6 @@ class DisplayInfo(Scene):
             popular = f" r/{popular[0].display_name} ({popular[1]} subs)"
 
         self.subs_obscure.text.text += obscure
-        self.subs_obscure.text.color = (0,0,0)
+        self.subs_obscure.text.color = (0, 0, 0)
         self.subs_popular.text.text += popular
-        self.subs_popular.text.color = (0,0,0)
+        self.subs_popular.text.color = (0, 0, 0)
