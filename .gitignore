@@ -1,6 +1,6 @@
 __pycache__/*
 **/__pycache__/*
-build/*
-dist/*
-data/temp/*
+Redditor-Analyzer/build/*
+Redditor-Analyzer/dist/*
+Redditor-Analyzer/data/temp/*
 notes.txt
