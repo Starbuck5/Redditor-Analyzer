@@ -37,7 +37,7 @@ def main():
     while True:
         screen.fill((10, 130, 190))
         bg.display()
-        pgx.tick()
+        pgx.tick(144)
 
         for scene in references.active_scenes:
             scene.run()

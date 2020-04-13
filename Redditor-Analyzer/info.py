@@ -95,7 +95,7 @@ class Info:
 
                 handle.write(block)
 
-        self.profile_pic = pgx.image.load(f"data/temp/profile{pic_type}")
+        self.profile_pic = pgx.image.load(f"data/temp/profile{pic_type}").convert()
 
     def _find_account_karma(self):
         self.comment_karma = self.redditor.comment_karma
