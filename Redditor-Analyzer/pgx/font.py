@@ -31,14 +31,30 @@ class font:
             self.Font = pygame.freetype.Font(self.path)
 
         # returns a tuple (image, rect)
-        # text is a textobj
         def render(self, textobj):
-            return self.Font.render(
+            size = self.Font.get_rect(
+                textobj.text, size=textobj.size, style=textobj.style
+            )
+
+            surf = pygame.Surface(
+                (size.w if size.w != 0 else 1, textobj.size), pygame.SRCALPHA
+            )
+            surf.fill((0, 0, 0, 0))
+
+            rect = self.Font.render_to(
+                surf,
+                (
+                    0,
+                    textobj.size - size.y + self.Font.get_sized_descender(textobj.size),
+                ),
                 textobj.text,
                 fgcolor=textobj.color,
                 bgcolor=textobj.bgcolor,
                 size=textobj.size,
+                style=textobj.style,
             )
+
+            return surf, surf.get_rect()
 
         # for some reason freetype font instances can't be automatically copied with copy.deepcopy()
         # this is my mitigation
@@ -69,10 +85,12 @@ class font:
     class _CustomFont:
         def __init__(self, path):
             self.missingTexture = self._makeMissingTexture()
-            self.char_index = list("0123456789abcdefghijklmnopqrstuvwxyz:,[]?+%|-&.'!/")
+            self.char_index = list(
+                "0123456789abcdefghijklmnopqrstuvwxyz:,[]?+%|-&.'!/()_"
+            )
             self.font_sheet = pygame.image.load(handle_path(path, True))
             self.char_list = image.break_sprite(
-                self.font_sheet, 8, 13, 2, 1, 6, [10, 10, 10, 6, 10, 4]
+                self.font_sheet, 8, 13, 2, 1, 6, [10, 10, 10, 6, 10, 7]
             )
             self.half_size = ["'", ".", ":" ",", "!", "|"]
 

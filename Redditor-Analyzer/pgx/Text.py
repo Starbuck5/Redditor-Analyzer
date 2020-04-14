@@ -1,5 +1,7 @@
-from pgx.font import font
 import copy
+import pygame.freetype
+
+from pgx.font import font
 
 
 class Text:
@@ -34,6 +36,9 @@ class Text:
         )
         self.__dict__["font"] = (
             Text.default_font if "font" not in kwargs else kwargs["font"]
+        )
+        self.__dict__["style"] = (
+            pygame.freetype.STYLE_DEFAULT if "style" not in kwargs else kwargs["style"]
         )
 
         self.__dict__["size"] = size

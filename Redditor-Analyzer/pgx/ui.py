@@ -1,5 +1,6 @@
 import pygame
 import copy
+import webbrowser
 
 from pgx.events import events
 from pgx.key import key
@@ -679,3 +680,106 @@ class Column(Panel):
         rect = self.location.rect
         rect[3] = args[-1].location.rect[1] + args[-1].location.rect[3]
         self.location.rect = rect
+
+
+hand_cursor_string = (
+    "                        ",
+    "         XX             ",
+    "        X..X            ",
+    "        X..X            ",
+    "        X..X            ",
+    "        X..X            ",
+    "        X..XXX          ",
+    "        X..X..XXX       ",
+    "        X..X..X..XX     ",
+    "        X..X..X..X.X    ",
+    "        X..X..X..X..X   ",
+    "        X..X..X..X..X   ",
+    "        X..X..X..X..X   ",
+    "    XX  X...........X   ",
+    "   X..X X...........X   ",
+    "   X...XX...........X   ",
+    "    X...............X   ",
+    "     X..............X   ",
+    "      X.............X   ",
+    "       X............X   ",
+    "        X..........X    ",
+    "         XX.......X     ",
+    "           XXXXXXX      ",
+    "                        ",
+)
+
+hand_cursor_small = (
+    "      X         ",
+    "     X.X        ",
+    "     X.X        ",
+    "     X.X        ",
+    "     X.XX       ",
+    "     X.X.XX     ",
+    "     X.X.X.XX   ",
+    "     X.X.X.X.X  ",
+    "     X.X.X.X.X  ",
+    "     X.......X  ",
+    "  XX X.......X  ",
+    "  X.XX.......X  ",
+    "  X..........X  ",
+    "   X.........X  ",
+    "    XX......X   ",
+    "      XXXXXX    ",
+)
+
+
+class Link(TextBox):
+    def __init__(self, location, textobj, link, *args, **kwargs):
+        textobj.style &= pygame.freetype.STYLE_UNDERLINE
+        self.link = link
+
+        super().__init__(location, textobj)
+
+        self.button = Button(self.location)
+
+        self.change_cursor = (
+            True if "change_cursor" not in kwargs else kwargs["change_cursor"]
+        )
+
+        self.currently_hovered = False
+        self.cursor_data = None
+        self.hand_cursor = pygame.cursors.compile(
+            hand_cursor_string, black=".", white="X"
+        )
+
+    def _display(self, screen, panel_dim=None):
+        # updating width and height from possible text changes
+        rect = self.location.rect
+        rect[2:4] = self.text.get_rect()[2:4]
+        rect[2] /= self.scale  # stops this from malfunctioning
+        rect[3] /= self.scale  # at different scales
+        self.location.rect = rect
+
+        rect = self.location.resolve()
+        screen.blit(self.text.get_image(), (rect.x, rect.y))
+
+        # for some reason adding the button to it as a component doesn't work
+        # so it has to manually call .display on it
+        # maybe something with the same
+        self.button.display()
+
+        if self.button.clicked:
+            webbrowser.open(self.link)
+
+        if self.change_cursor:
+                if not self.currently_hovered:
+                    self.currently_hovered = True
+                    self.cursor_data = pygame.mouse.get_cursor()
+                    pygame.mouse.set_cursor((24, 24), (0, 0), *self.hand_cursor)
+
+            else:
+                if self.currently_hovered:
+                    self.currently_hovered = False
+                    pygame.mouse.set_cursor(*self.cursor_data)
+
+    # public attributes
+    # everything in general UI
+    # .text > pgx.Text
+    # .color > (r,g,b), can be used to read or change color of text object
+    # .link > string, the address the link object goes to when clicked.

@@ -34,7 +34,7 @@ class EnterUsername(Scene):
         self.status_box = self.input.get_components()[0]
 
         self.status_text = pgx.ui.TextBox(
-            pgx.Location(["center", 54], "center"), pgx.Text("TESTING", 20)
+            pgx.Location(["center", 60], "center"), pgx.Text("TESTING", 20)
         )
         self.input.add(self.status_text)
 

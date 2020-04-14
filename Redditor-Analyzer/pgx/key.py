@@ -9,6 +9,25 @@ feature request: pgx.key.sim_press, sim_release, simulating press or release
 make a kwarg for all the checker ones that remove the event from the event queue if found
 """
 
+"""
+I now want to completely change up the interface to make it more amenable to not repeating keys
+
+id being a key constant or a string
+invisible being whether it deletes the event when it finds a match
+
+class key:
+
+    def _prepare()
+
+    def is_pressed(id, invisible = False)
+
+    def is_just_pressed(id, invisible = False)
+
+    def is_just_released(id, invisible = False)
+
+
+"""
+
 # easy way to access keyboard input
 # all keys returned in number format, checkable like "pygame.K_0 in pgx.key.downs()"
 class key:

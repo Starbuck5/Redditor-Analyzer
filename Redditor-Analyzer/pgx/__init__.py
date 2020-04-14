@@ -47,7 +47,7 @@ def init(resolution):
 
     Text.init()
 
-    key.set_repeat(pygame.K_BACKSPACE, 1000, 40)
+    pygame.key.set_repeat(500, 20)
 
 
 def tick(*args):
@@ -112,11 +112,3 @@ def apply_scaling():
 
     data.set_global_scale(scale)
     data.set_global_offset(adjustments)
-
-
-# meant to called from command line one directory above pgx module
-# extremely WIP
-def run_tests():
-    import pgx.tests
-
-    pgx.tests.run_tests()
