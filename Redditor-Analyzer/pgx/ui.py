@@ -768,6 +768,7 @@ class Link(TextBox):
             webbrowser.open(self.link)
 
         if self.change_cursor:
+            if self.button.hovered:
                 if not self.currently_hovered:
                     self.currently_hovered = True
                     self.cursor_data = pygame.mouse.get_cursor()
