@@ -1,21 +1,21 @@
 import os
 import platform
-from pgx.handle_path import handle_path
-from pgx.data import data
 
 
 class compiler:
-    # icon should be .icon for windows, .icns for mac
+    # icon should be .ico for windows, .icns for mac
     # converters from normal image formats to these are easy to find through google
     @staticmethod
     def compile(name, script, icon):
 
+        from pgx import path
+
         # not needed in code, just throws an error if user doesn't have pyinstaller
         import PyInstaller
 
-        script = handle_path(script)
+        script = path.handle(script)
         scriptPath, scriptName = os.path.split(script)
-        iconPath = handle_path(icon)
+        iconPath = path.handle(icon)
 
         if platform.system() == "Darwin":
             fileString = _get_mac(name, scriptName, scriptPath, iconPath)
@@ -27,7 +27,7 @@ class compiler:
             )
 
         tempFilePath = "tempCompileFile.spec"
-        path = handle_path(tempFilePath)
+        path = path.handle(tempFilePath)
         tempFileDir = os.path.split(path)[0]
         file = open(path, "w+")
 
@@ -54,7 +54,7 @@ a = Analysis(['{scriptName}'],
              binaries=[],
              datas=[],
              hiddenimports=['pkg_resources.py2_warn'],
-             hookspath=['{data.get_internalpath()}'],
+             hookspath=[],
              runtime_hooks=[],
              excludes=[],
              win_no_prefer_redirects=False,
@@ -93,7 +93,7 @@ a = Analysis(['{}'],
              binaries=[],
              datas=[],
              hiddenimports=['pkg_resources.py2_warn'],
-             hookspath=['{}'],
+             hookspath=[],
              runtime_hooks=[],
              excludes=[],
              win_no_prefer_redirects=False,
@@ -114,8 +114,6 @@ exe = EXE(pyz,
           console=False,
           icon='{}')
     """
-    winSettings = winSettings.format(
-        scriptName, scriptPath, data.get_internalpath(), name, iconPath
-    )
+    winSettings = winSettings.format(scriptName, scriptPath, name, iconPath)
     winSettings = winSettings.replace("\\", "\\\\")
     return winSettings

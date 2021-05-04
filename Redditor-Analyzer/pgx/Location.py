@@ -1,48 +1,19 @@
+import copy
+
 import pygame
 
 from pgx.interpret_coords import interpret_coords
+from pgx.scale import scale
 
-from pgx.data import data
-
-"""
-I suppose you should consider caching resolve and using setattr again
-
-It could use multiple arg support -- "top-bottom+10-37+height" #likely not that elaborate but it could be helpful
-"""
-
-"""
-
-NEEDS SERIOUS WORK
-
-the interface for accessing various locations (real? fake? offsets/anchors?) is unclear
-
-the interface for moving is nonexistent
-
-the weird back compat with rect should be removed
-
-consider stealing pygame rect api for things
-
-"""
+from pgx.Rect import Rect as pgx_rect
+from pygame import Rect as pygame_rect
 
 
 class Location:
-    # implementation deets:
-    # self.rect is the permanent offset storage, editable
-    # self.rect_anchors is the permanent anchor storage
-    # self._rect is reconstituted from other rect stuff on demand, then returned
-
-    # init styles
-    # Location([230, 40, 10, 20], "center")
-    # Location(["center", "top", "width/2", "height"])
-    # Location([0,0]) = Location([0,0,0,0])
-    # Location() = Location([0,0,0,0])
-
-    # __init__(self, rect, align="left") #parameters
-    # rect can be [x,y,w,h], [x,y] or pygame.Rect
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         # processing alternative forms of init
         if len(args) == 0:
-            rect = [0, 0, 0, 0]
+            rect = [0, 0, -1, -1]
             align = "left"
         elif len(args) == 1:
             rect = args[0]
@@ -51,135 +22,255 @@ class Location:
             rect, align = args
         else:
             raise TypeError(
-                "Location takes 0-2 parameters but {len(args)} parameters were given"
+                f"Location takes 0-2 parameters but {len(args)} parameters were given"
             )
 
-        rect = list(rect)
         try:
+            rect = list(rect)
             if len(rect) == 2:
-                rect += [0, 0]
+                rect += [-1, -1]
+            if len(rect) == 3:
+                rect += [-1]
         except:
             raise TypeError("Location rect arg must be a list-esque thing (a sequence)")
 
-        # actually initializing
-        self.__dict__["scale"] = 1
+        precise = False if "precise" not in kwargs else kwargs["precise"]
+        if precise:
+            self.rect_class = pgx_rect
+        else:
+            self.rect_class = pygame_rect
+
         self.align = align
+        self._base_rect_num, self._base_rect_keywords = self._uncombine_rect(rect)
+        self.changed = False
 
-        self.base_panel_dim = [0, 0, *data.get_resolution()]
-        self.real_panel_dim = self.base_panel_dim.copy()
+        self._ui_scale = 1
+        self._user_scale = 1
 
-        self.base_offsets, self.anchors = self._split_format_rect(rect)
-        self.real_offsets = self.base_offsets.copy()
+        self._base_panel_dim = self.rect_class([0, 0, *scale.get_resolution()])
+        self.last_offset = scale.get_offset()
 
-        self.current_rect = -1
         self._resolve()
 
-        self.last_offset = [0, 0]
+    def __str__(self):
+        self.resolve()
+        return f"Location: {self.get_resolved_base_rect()} -> {self.resolve()}, ui_scale: {self.get_ui_scale()}, user_scale: {self.get_user_scale()}"
 
-    # breaks rect ['20', 'right-12', 77, 'top-10'] into numbers and anchors
-    def _split_format_rect(self, rect):
-        rect_anchors = [0, 0, 0, 0]
-        anchors = ["center", "right", "left", "top", "bottom", "width", "height"]
-        center, right, left, top, bottom, width, height = [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        ]  # variables set to zero for eval
-        for i in range(len(rect)):
-            if isinstance(rect[i], str):
-                for anchor in anchors:
-                    if anchor in rect[i]:
-                        rect_anchors[i] = anchor
-                        break
+    def __eq__(self, other):
+        return self.resolve() == other.resolve()
 
-                # what does this accomplish?
-                if not rect_anchors[i]:
-                    raise ValueError(f"Location cannot process '{rect[i]}'")
+    # ------------------------------------------------------------------------------------------#
+    #                                          HELPER METHODS                                   #
+    # ------------------------------------------------------------------------------------------#
 
-                rect[i] = eval(rect[i])  # gets rid of string bits
+    # method to take formatted rects with keywords in them and split them into
+    # their keywords and numbers separately
+    def _uncombine_rect(self, rect):
+        rect_num = [0, 0, 0, 0]
+        rect_keywords = ["", "", "", ""]
 
-        return rect, rect_anchors
+        for i, term in enumerate(rect):
+            try:
+                rect_num[i] = int(term)
+            except:
+                term = "".join(
+                    [char if char not in ["+", "-"] else " " + char for char in term]
+                )
+                subterms = term.split(" ")
 
-    def _scale_numlist(self, numlist):
-        numlist = list(numlist)  # .copy() that also casts to list
-        for i in range(len(numlist)):
-            numlist[i] *= self.scale
-        return numlist
+                for subterm in subterms:
+                    try:
+                        rect_num[i] += int(subterm)
+                    except:
+                        rect_keywords[i] += subterm
 
-    def _scale(self):
-        self.real_offsets = self._scale_numlist(self.base_offsets)
-        self.real_panel_dim = self._scale_numlist(self.base_panel_dim)
+        return self.rect_class(rect_num), rect_keywords
+
+    # method that reconstitutes a formatted rect out of the keywords and numbers
+    # extracted earlier
+    def _combine_rect(self, rect_num, rect_keywords):
+        rect_output = ["", "", "", ""]
+        for i, (num, keyword) in enumerate(zip(rect_num, rect_keywords)):
+            if keyword:
+                rect_output[i] = keyword + "+" + str(num)
+            else:
+                rect_output[i] = num
+
+        return rect_output
+
+    def _scale_rect(self, rect, pos_scale, size_scale):
+        rect.x *= pos_scale
+        rect.y *= pos_scale
+        rect.w *= size_scale
+        rect.h *= size_scale
 
     def _resolve(self):
-        # creating current_rect
-        new_real = list(self.real_offsets)  # .copy() that also casts to list
-        for i, (offset, anchor) in enumerate(zip(self.real_offsets, self.anchors)):
-            if anchor:
-                new_real[i] = anchor + "+" + str(offset)
+        # keeping track of things that control when to resolve
+        self._last_base_rect_num = self._base_rect_num.copy()
+        self.changed = False
+        self.last_offset = scale.get_offset()
 
-        interpret_coords(new_real, self.align, self.real_panel_dim)
-        self.current_rect = pygame.Rect(new_real)
+        # generating self.current_rect_resolved
+        current_rect_num = self._base_rect_num.copy()
+        self._scale_rect(
+            current_rect_num,
+            self.get_ui_scale(),
+            self.get_ui_scale() * self.get_user_scale(),
+        )
+        current_rect_formatted = self._combine_rect(
+            current_rect_num, self._base_rect_keywords
+        )
 
-        # creating base_rect, used by UI scaling to have something firm to grab on to
-        # see pgx.ui.UI.display()
-        new_base = self.base_offsets.copy()
-        for i, (offset, anchor) in enumerate(zip(self.base_offsets, self.anchors)):
-            if anchor:
-                new_base[i] = anchor + "+" + str(offset)
+        scaled_panel_dim = self._base_panel_dim.copy()
+        self._scale_rect(scaled_panel_dim, self.get_ui_scale(), self.get_ui_scale())
 
-        interpret_coords(new_base, self.align, self.base_panel_dim, True)
-        self.base_rect = pygame.Rect(new_base)
+        interpret_coords(current_rect_formatted, self.get_align(), scaled_panel_dim)
+        # current resolved rect uses pygame_rects because resolved coordinates are used on the screen
+        # so sub pixel detail doesn't matter anymore
+        self._current_rect_resolved = pygame_rect(current_rect_formatted)
 
-    def resolve(self):
-        # diff approach than other 'dynamic resizing' stuff
-        # just checks every tick, rather than checking for setattr changes
-        if self.last_offset != data.get_global_offset():
-            self.last_offset = data.get_global_offset()
-            self._resolve()
+        # generating self._base_rect_resolved
+        # gives UI scaling something firm to grab (in pgx.ui.UI.display())
+        # has to take into account user directed scaling separately than ui scaling
+        base_rect_num_scaled = self._base_rect_num.copy()
+        self._scale_rect(base_rect_num_scaled, 1, self.get_user_scale())
 
-        return self.current_rect
+        base_rect_formatted = self._combine_rect(
+            base_rect_num_scaled, self._base_rect_keywords
+        )
 
-    def __str__(self):
-        return f"Location at {self.current_rect}"
+        interpret_coords(
+            base_rect_formatted, self.get_align(), self.get_parent_context(), True
+        )
+        self._base_rect_resolved = self.rect_class(base_rect_formatted)
 
-    def get_align(self):
+    # ------------------------------------------------------------------------------------------#
+    #                                 PANEL_DIM CONTEXT INTERFACE                               #
+    # ------------------------------------------------------------------------------------------#
+
+    def get_parent_context(self):
+        return self._base_panel_dim
+
+    def set_parent_context(self, value):
+        value = self.rect_class(value)
+
+        if value != self._base_panel_dim:
+            self.changed = True
+
+        self._base_panel_dim = value
+
+    # ------------------------------------------------------------------------------------------#
+    #                                     ALIGN INTERFACE                                       #
+    # ------------------------------------------------------------------------------------------#
+
+    def get_align(self) -> str:
+        """Get the align (“left”, “right”, or “center”)."""
         return self.align
 
-    def set_align(self, align):
+    def set_align(self, align: str) -> None:
+        """Set the align (“left”, “right”, or “center”)."""
+        if align != self.align:
+            self.changed = True
+
         self.align = align
 
-    """
-    probably needs some behavior for set rect
-    """
+    # ------------------------------------------------------------------------------------------#
+    #                                     SCALE INTERFACE                                       #
+    # ------------------------------------------------------------------------------------------#
+
+    def get_ui_scale(self) -> float:
+        return self._ui_scale
+
+    def set_ui_scale(self, value: float) -> None:
+        if value != self._ui_scale:
+            self.changed = True
+
+        self._ui_scale = value
+
+    def get_user_scale(self) -> float:
+        return self._user_scale
+
+    def set_user_scale(self, value: float) -> None:
+        if value != self._user_scale:
+            self.changed = True
+
+        self._user_scale = value
+
+    # ------------------------------------------------------------------------------------------#
+    #                                     RECT INTERFACE                                        #
+    # ------------------------------------------------------------------------------------------#
+
+    rect_methods = {"move_ip", "inflate_ip", "clamp_ip"}
+    rect_attributes = {
+        "y",
+        "h",
+        "left",
+        "right",
+        "bottom",
+        "center",
+        "topleft",
+        "centerx",
+        "topright",
+        "midbottom",
+        "bottomright",
+        "bottomleft",
+        "midright",
+        "centery",
+        "midleft",
+        "height",
+        "midtop",
+        "width",
+        "size",
+        "top",
+        "w",
+        "x",
+    }
+
+    def __getattr__(self, name):
+        if name in Location.rect_attributes or name in Location.rect_methods:
+            return getattr(self._base_rect_num, name)
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     def __setattr__(self, name, value):
-        if name == "scale" and value != self.scale:
-            self.__dict__["scale"] = value
-            self._scale()
-            self._resolve()
-        elif name == "panel_dim" and value and value != self.base_panel_dim:
-            self.__dict__["base_panel_dim"] = value
-            self._scale()
-            self._resolve()
-        elif name == "rect":
-            self.__dict__["base_offsets"] = list(value)
-            self._scale()
-            self._resolve()
+        if name in Location.rect_attributes:
+            setattr(self._base_rect_num, name, value)
         else:
             self.__dict__[name] = value
 
-    def __getattr__(self, name):
-        if name == "rect":
-            return pygame.Rect(self.__dict__["base_offsets"])
-        return self.__dict__[name]
+    # ------------------------------------------------------------------------------------------#
+    #                                    RESULTS INTERFACE                                      #
+    # ------------------------------------------------------------------------------------------#
 
-    # IS this even true?
-    """     
-    #public attribute
-    #.rect
-    #can be used for all those fun pygame.Rect operations
-    """
+    def resolve(self, force_processing=False):
+        """Returns the resolved rect of the location object."""
+        if (
+            self.changed
+            or self.last_offset != scale.get_offset()
+            or force_processing
+            or self._last_base_rect_num != self._base_rect_num
+        ):
+            self._resolve()
+
+        return self._current_rect_resolved
+
+    def get_resolved_base_rect(self, force_processing=False):
+        """Returns a rect that takes into account everything but system UI scaling."""
+        if force_processing:
+            self._resolve()
+
+        return self._base_rect_resolved
+
+    def visualize(
+        self, screen: pygame.Surface = None, color=(255, 0, 0), width: int = 1
+    ) -> None:
+        """Handy way of seeing what the location is thinking."""
+        if not screen:
+            screen = pygame.display.get_surface()
+
+        pygame.draw.rect(screen, color, self.resolve(), width)
+
+    def copy(self):
+        return copy.deepcopy(self)

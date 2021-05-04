@@ -36,7 +36,7 @@ class EnterUsername(Scene):
         self.status_text = pgx.ui.TextBox(
             pgx.Location(["center", 60], "center"), pgx.Text("TESTING", 20)
         )
-        self.input.add(self.status_text)
+        self.input.add_component(self.status_text)
 
         self.last_text = self.input.text.text
         self.users_valid = {}  # dictionary of usernames : validity
@@ -61,8 +61,8 @@ class EnterUsername(Scene):
 
         if (
             text in self.users_valid
-            and self.users_valid[text]
-            and pygame.K_SPACE in pgx.key.downs()
+            and self.users_valid[text] and
+            pgx.key.is_just_pressed(pygame.K_SPACE)
         ):
             references.redditor = references.reddit.redditor(text)
             references.redditor_info = None
@@ -145,8 +145,8 @@ class DisplayInfo(Scene):
             pgx.Location(["right-10", "bottom-30"], "right"), pgx.Text("", 20)
         )
 
-        self.panel = pgx.ui.Panel(pgx.Location())
-        self.panel.add(
+        self.panel = pgx.ui.Panel(pgx.Location([0, 0, "width", "height"]))
+        self.panel.add_component(
             self.pic,
             self.date,
             self.age,
